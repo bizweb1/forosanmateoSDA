@@ -46,7 +46,7 @@
 <body>
 <!--
 SUPABASE SETUP QUICK NOTES
-1) Create tables: profiles, posts, reactions, comments. Create bucket: post-media (public).
+1) Create tables: profiles, posts, reactions, comments. Create bucket: post-images (public).
 2) In Supabase Auth, enable Email provider.
 3) SUPABASE_URL and SUPABASE_ANON_KEY are filled in below from your project screenshot/key. If signup still says Failed to fetch, copy the full Publishable key again from Supabase because the visible key may be shortened.
 
@@ -67,7 +67,7 @@ create policy "reactions delete own" on reactions for delete using (auth.uid()=u
 create policy "comments read" on comments for select using (true);
 create policy "comments insert own" on comments for insert with check (auth.uid()=user_id);
 create policy "comments delete own" on comments for delete using (auth.uid()=user_id);
--- Storage bucket: post-media, public. Storage policies in Supabase Dashboard: allow authenticated users to upload; allow public read.
+-- Storage bucket: post-images, public. Storage policies in Supabase Dashboard: allow authenticated users to upload; allow public read.
 -- Important: do not put Secret key in this file. Use only Publishable/Anon key.
 -- Also add your GitHub Pages URL in Supabase Authentication > URL Configuration.
 -- Facebook links can be posted as normal text links; YouTube auto-embeds.
@@ -172,7 +172,7 @@ $('signOutBtn').onclick=async()=>{await sb.auth.signOut();location.reload()}
 $('verseTool').onclick=()=>{$('verseRef').classList.toggle('hidden');$('verseTool').classList.toggle('active')}
 $('youtubeTool').onclick=()=>{$('youtubeUrl').classList.toggle('hidden');$('youtubeTool').classList.toggle('active')}
 $('photoFile').onchange=e=>{$('fileName').textContent=e.target.files[0]?.name||''}
-$('publishBtn').onclick=async()=>{if(!currentUser)return toast('Sign in first');let body=$('postText').value.trim(), verse=$('verseRef').value.trim(), yt=$('youtubeUrl').value.trim(), media=null;const f=$('photoFile').files[0];if(!body&&!verse&&!yt&&!f)return toast('Write something or add media');if(f){if(f.size>5*1024*1024)return toast('Photo must be under 5MB');const path=`${currentUser.id}/${Date.now()}-${f.name.replace(/[^a-z0-9.]/gi,'-')}`;const up=await sb.storage.from('post-media').upload(path,f);if(up.error)return toast(friendlyError(up.error));media=sb.storage.from('post-media').getPublicUrl(path).data.publicUrl}
+$('publishBtn').onclick=async()=>{if(!currentUser)return toast('Sign in first');let body=$('postText').value.trim(), verse=$('verseRef').value.trim(), yt=$('youtubeUrl').value.trim(), media=null;const f=$('photoFile').files[0];if(!body&&!verse&&!yt&&!f)return toast('Write something or add media');if(f){if(f.size>5*1024*1024)return toast('Photo must be under 5MB');const path=`${currentUser.id}/${Date.now()}-${f.name.replace(/[^a-z0-9.]/gi,'-')}`;const up=await sb.storage.from('post-images').upload(path,f);if(up.error)return toast(friendlyError(up.error));media=sb.storage.from('post-images').getPublicUrl(path).data.publicUrl}
 const {error}=await sb.from('posts').insert({user_id:currentUser.id,body,verse_ref:verse,media_url:media,youtube_url:yt});if(error)return toast(friendlyError(error));$('postText').value='';$('verseRef').value='';$('youtubeUrl').value='';$('photoFile').value='';$('fileName').textContent='';await loadFeed()}
 async function loadFeed(){const p=await sb.from('posts').select('*').order('created_at',{ascending:false}).limit(50);posts=p.data||[];const userIds=[...new Set(posts.map(x=>x.user_id))];if(userIds.length){const pr=await sb.from('profiles').select('*').in('id',userIds);profiles=Object.fromEntries((pr.data||[]).map(x=>[x.id,x]))}const ids=posts.map(p=>p.id);if(ids.length){comments=(await sb.from('comments').select('*').in('post_id',ids).order('created_at',{ascending:true})).data||[];reactions=(await sb.from('reactions').select('*').in('post_id',ids)).data||[]}renderFeed()}
 function renderFeed(target='feed', list=posts){$(target).innerHTML=list.map(postHTML).join('')||`<div class="card" style="padding:22px;color:var(--muted)">${tr('noPosts')}</div>`}
