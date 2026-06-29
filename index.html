@@ -204,6 +204,30 @@ body.sabbathMode .hero{background:linear-gradient(135deg,#fff8e7,#eaf6ff)}
 @keyframes prayerFlash{0%,100%{opacity:.74;transform:scale(.995)}50%{opacity:1;transform:scale(1)}}
 @media(max-width:1050px){.prayerTickerCard{display:none}}
 
+
+/* Messages enabled */
+.messageLayout{display:grid;grid-template-columns:260px 1fr;gap:14px;margin-top:10px}
+.messagePanel{background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.messagePanelHead{padding:14px 16px;border-bottom:1px solid var(--line);font-weight:900;color:var(--navy);display:flex;justify-content:space-between;align-items:center}
+.messagePeople{max-height:420px;overflow:auto;padding:8px}
+.messagePerson{width:100%;display:flex;gap:10px;align-items:center;background:#fff;border-radius:16px;padding:10px;text-align:left;color:var(--navy);font-weight:800}
+.messagePerson:hover,.messagePerson.active{background:#eef6ff}
+.messagePerson .avatar{width:38px;height:38px;font-size:13px}
+.messagePerson small{display:block;color:var(--muted);font-weight:600;margin-top:2px}
+.messageChat{min-height:420px;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.messageChatHead{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;font-weight:900;color:var(--navy)}
+.messageThread{flex:1;padding:16px;overflow:auto;background:linear-gradient(180deg,#f8fbff,#fff);display:flex;flex-direction:column;gap:10px;max-height:420px}
+.messageBubble{max-width:78%;padding:11px 13px;border-radius:18px;background:#eef4fb;color:#172033;line-height:1.35}
+.messageBubble.me{align-self:flex-end;background:#2f80ed;color:#fff;border-bottom-right-radius:6px}
+.messageBubble.them{align-self:flex-start;border-bottom-left-radius:6px}
+.messageBubble time{display:block;font-size:11px;opacity:.72;margin-top:5px}
+.messageComposer{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line);background:#fff}
+.messageComposer input{flex:1;border:1px solid var(--line);border-radius:999px;padding:12px 14px;background:#f8fbff}
+.messageEmpty{padding:28px;text-align:center;color:var(--muted);line-height:1.45}
+.messageStart{display:flex;gap:8px;padding:12px;border-bottom:1px solid var(--line);background:#f8fbff}
+.messageStart select{flex:1;border:1px solid var(--line);border-radius:14px;padding:11px;background:#fff;color:var(--navy);font-weight:700}
+@media(max-width:760px){.messageLayout{grid-template-columns:1fr}.messagePeople{max-height:220px}.messageChat{min-height:360px}.messageThread{max-height:360px}.messageBubble{max-width:88%}}
+
   </style>
 </head>
 <body>
@@ -550,6 +574,7 @@ function showChurchPage(page, btn){
 }
 function renderManagementPage(page){
   const view=$('managementView'); if(!view) return;
+  if(page==='messages'){ renderMessagesPage(); return; }
   const recentPosts=(posts||[]).slice(0,5);
   const imageCount=(posts||[]).filter(p=>p.media_url).length;
   const videoCount=(posts||[]).filter(p=>p.youtube_url).length;
@@ -562,7 +587,7 @@ function renderManagementPage(page){
     testimonies:{icon:'❤️',title:lang==='es'?'Testimonios':'Testimonies',desc:lang==='es'?'Comparte cómo Dios está obrando en tu vida.':'Share how God is working in your life.',cards:[[lang==='es'?'Testimonios':'Testimonies',(posts||[]).filter(isTestimonyPost).length],[lang==='es'?'Destacados':'Featured',(posts||[]).filter(isTestimonyPost).filter(p=>String(p.body||'').toLowerCase().includes('praise')||String(p.body||'').toLowerCase().includes('gloria')).length],[lang==='es'?'Esta semana':'This week',(posts||[]).filter(isTestimonyPost).filter(p=>new Date(p.created_at)>new Date(Date.now()-7*24*60*60*1000)).length]],body:`<div class="prayerCreate"><h3 style="margin:0 0 8px;color:var(--navy)">❤️ ${lang==='es'?'Nuevo testimonio':'New Testimony'}</h3><p class="meta" style="margin-top:0">${lang==='es'?'Comparte una bendición, respuesta a oración o cómo Dios te ha guiado.':'Share a blessing, answered prayer, or how God has guided you.'}</p><textarea id="quickTestimonyText" placeholder="${lang==='es'?'Escribe tu testimonio...':'Write your testimony...'}"></textarea><button class="cmsAction" style="margin-top:10px;background:#be185d" onclick="quickTestimonyPost()">❤️ ${tr('post')}</button></div><div class="cmsList">${(posts||[]).filter(isTestimonyPost).map(p=>postHTML(p)).join('')||'<p style="color:var(--muted)">'+tr('noPosts')+'</p>'}</div>`},
     events:{icon:'📅',title:'Events',desc:'Church calendar for Sabbath, Bible studies, youth ministry, and announcements.',cards:[['Upcoming',(getAdminContent().events||[]).length],['This month','3'],['RSVPs','0']],body:(getAdminContent().events||[]).map(e=>`<div class="cmsRow"><div><strong>${safe(e.title)}</strong><div class="meta">${safe(e.date)} · ${safe(e.place)}</div></div><span class="cmsPill">Event</span></div>`).join('')},
     members:{icon:'👥',title:'Members',desc:'Church directory and member profiles.',cards:[['Members',memberCount],['Online','1'],['Roles','Member/Admin']],body:Object.values(profiles||{}).map(u=>`<div class="cmsRow"><div><strong>${safe(u.username||'Member')}</strong><div class="meta">${safe(u.bio||u.full_name||'Church Forum member')}</div></div><span class="cmsPill">Member</span></div>`).join('')||'<p>Members will appear after they post or profile data loads.</p>'},
-    messages:{icon:'💬',title:'Messages',desc:'Private and ministry group messages.',cards:[['Inbox','0'],['Groups','0'],['Unread','0']],body:'<div class="cmsRow"><div><strong>Messaging system placeholder</strong><div class="meta">For privacy, this needs a messages table and RLS policies.</div></div><span class="cmsPill">Phase 2</span></div>'},
+    messages:{icon:'💬',title:lang==='es'?'Mensajes':'Messages',desc:lang==='es'?'Mensajes privados entre miembros de la iglesia.':'Private messages between church members.',cards:[['Inbox','...'],[lang==='es'?'Conversaciones':'Conversations','...'],[lang==='es'?'No leídos':'Unread','...']],body:'<div class="messageEmpty">Loading messages...</div>'},
     media:{icon:'📂',title:'Media',desc:'Photos, verse graphics, and videos shared by the church.',cards:[['Images',imageCount],['Videos',videoCount],['Storage','post-images']],body:recentPosts.filter(p=>p.media_url).map(p=>`<img class="media" style="border-radius:18px;margin-bottom:12px" src="${p.media_url}">`).join('')||'<p>No media uploaded yet.</p>'},
     'admin-dashboard':{icon:'🛡️',title:'Admin Dashboard',desc:'Professional church management overview.',cards:[['Members',memberCount],['Posts',posts.length],['Comments',comments.length],['Photos',imageCount],['Videos',videoCount],['Reports','0']],body:`<div class="cmsList">${postRows}</div>`},
     'admin-users':{icon:'👤',title:'User Management',desc:'Review members, roles, and access.',cards:[['Total users',memberCount],['Admins','1'],['Pending','0']],body:Object.values(profiles||{}).map(u=>`<div class="cmsRow"><div><strong>${safe(u.username||'Member')}</strong><div class="meta">Role: Member</div></div><button class="cmsAction secondary" onclick="toast('Role tools require database role column')">Manage</button></div>`).join('')||'<p>No users loaded yet.</p>'},
@@ -576,10 +601,95 @@ function renderManagementPage(page){
   const data=pages[page]||pages['admin-dashboard'];
   view.innerHTML=`<div class="sectionPage"><h2>${data.icon} ${data.title}</h2><p>${data.desc}</p><div class="cmsGrid">${(data.cards||[]).map(c=>`<div class="cmsCard"><strong>${safe(String(c[1]))}</strong><span>${safe(String(c[0]))}</span></div>`).join('')}</div><div class="cmsList">${data.body||''}</div></div>`;
 }
+
+let messageUsers=[], messageRows=[], activeMessageUserId=null;
+function messageText(key){
+  const es=lang==='es';
+  const dict={
+    title:es?'Mensajes':'Messages',
+    desc:es?'Mensajes privados entre miembros de la iglesia.':'Private messages between church members.',
+    members:es?'Miembros':'Members',
+    conversation:es?'Conversación':'Conversation',
+    selectMember:es?'Selecciona un miembro':'Select a member',
+    newMessage:es?'Nuevo mensaje':'New message',
+    write:es?'Escribe un mensaje...':'Write a message...',
+    send:es?'Enviar':'Send',
+    noMembers:es?'Aún no hay otros miembros disponibles.':'No other members available yet.',
+    choose:es?'Escoge un miembro para iniciar una conversación.':'Choose a member to start a conversation.',
+    noMessages:es?'No hay mensajes todavía. Envía el primero.':'No messages yet. Send the first one.',
+    setup:es?'Si aparece un error, ejecuta el SQL de mensajes una vez en Supabase.':'If an error appears, run the messages SQL once in Supabase.'
+  };
+  return dict[key]||key;
+}
+async function loadMessagesData(){
+  if(!currentUser)return;
+  const profRes=await sb.from('profiles').select('id,username,bio,avatar_url,full_name').order('username',{ascending:true});
+  if(profRes.error){toast(friendlyError(profRes.error)); messageUsers=[];} else {messageUsers=(profRes.data||[]).filter(u=>u.id!==currentUser.id);}
+  const msgRes=await sb.from('messages').select('*').or(`sender_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`).order('created_at',{ascending:true}).limit(300);
+  if(msgRes.error){
+    messageRows=[];
+    if(String(msgRes.error.message||'').toLowerCase().includes('does not exist')) toast(lang==='es'?'Falta la tabla messages. Ejecuta el SQL de mensajes.':'Messages table missing. Run the messages SQL.');
+    else toast(friendlyError(msgRes.error));
+  } else messageRows=msgRes.data||[];
+  const allProfiles={...(profiles||{})};
+  for(const u of messageUsers) allProfiles[u.id]=u;
+  if(myProfile) allProfiles[currentUser.id]=myProfile;
+  profiles=allProfiles;
+}
+function conversationWith(userId){
+  return (messageRows||[]).filter(m=>(m.sender_id===currentUser.id&&m.recipient_id===userId)||(m.sender_id===userId&&m.recipient_id===currentUser.id));
+}
+function lastMessageFor(userId){
+  const rows=conversationWith(userId);
+  return rows[rows.length-1];
+}
+function unreadCount(){return (messageRows||[]).filter(m=>m.recipient_id===currentUser.id&&!m.read_at).length;}
+async function renderMessagesPage(){
+  const view=$('managementView'); if(!view)return;
+  view.innerHTML=`<div class="sectionPage"><h2>💬 ${messageText('title')}</h2><p>${messageText('desc')}</p><div class="cmsGrid"><div class="cmsCard"><strong>...</strong><span>Inbox</span></div><div class="cmsCard"><strong>...</strong><span>${lang==='es'?'Conversaciones':'Conversations'}</span></div><div class="cmsCard"><strong>...</strong><span>${lang==='es'?'No leídos':'Unread'}</span></div></div><div class="messageEmpty">${messageText('setup')}</div></div>`;
+  await loadMessagesData();
+  const convIds=[...new Set((messageRows||[]).map(m=>m.sender_id===currentUser.id?m.recipient_id:m.sender_id))];
+  const memberMap=Object.fromEntries((messageUsers||[]).map(u=>[u.id,u]));
+  const ordered=[...convIds.map(id=>memberMap[id]||profiles[id]).filter(Boolean), ...messageUsers.filter(u=>!convIds.includes(u.id))];
+  if(!activeMessageUserId && ordered.length) activeMessageUserId=ordered[0].id;
+  const activeUser=profiles[activeMessageUserId]||messageUsers.find(u=>u.id===activeMessageUserId);
+  const rows=activeMessageUserId?conversationWith(activeMessageUserId):[];
+  const inbox=(messageRows||[]).filter(m=>m.recipient_id===currentUser.id).length;
+  const body=`
+    <div class="messageLayout">
+      <div class="messagePanel">
+        <div class="messagePanelHead"><span>${messageText('members')}</span><span class="cmsPill">${ordered.length}</span></div>
+        <div class="messageStart"><select id="messageMemberSelect"><option value="">${messageText('selectMember')}</option>${messageUsers.map(u=>`<option value="${u.id}">${safe(u.username||u.full_name||'Member')}</option>`).join('')}</select><button class="cmsAction" onclick="startMessageFromSelect()">+</button></div>
+        <div class="messagePeople">${ordered.length?ordered.map(u=>{const lm=lastMessageFor(u.id);const unread=(messageRows||[]).filter(m=>m.sender_id===u.id&&m.recipient_id===currentUser.id&&!m.read_at).length;return `<button class="messagePerson ${u.id===activeMessageUserId?'active':''}" onclick="selectConversation('${u.id}')"><span class="avatar">${avatarInner(u)}</span><span>${safe(u.username||u.full_name||'Member')}<small>${lm?safe(String(lm.body||'').slice(0,34)):messageText('newMessage')}</small></span>${unread?`<span class="cmsPill">${unread}</span>`:''}</button>`}).join(''):`<div class="messageEmpty">${messageText('noMembers')}</div>`}</div>
+      </div>
+      <div class="messageChat">
+        ${activeUser?`<div class="messageChatHead"><span class="avatar" style="width:38px;height:38px;font-size:13px">${avatarInner(activeUser)}</span><span>${safe(activeUser.username||activeUser.full_name||'Member')}</span></div><div class="messageThread" id="messageThread">${rows.length?rows.map(m=>`<div class="messageBubble ${m.sender_id===currentUser.id?'me':'them'}">${safe(m.body)}<time>${timeAgo(m.created_at)}</time></div>`).join(''):`<div class="messageEmpty">${messageText('noMessages')}</div>`}</div><div class="messageComposer"><input id="messageInput" placeholder="${messageText('write')}" onkeydown="if(event.key==='Enter'){event.preventDefault();sendMessage()}"><button class="send" onclick="sendMessage()">➜</button></div>`:`<div class="messageEmpty">${messageText('choose')}</div>`}
+      </div>
+    </div>`;
+  view.innerHTML=`<div class="sectionPage"><h2>💬 ${messageText('title')}</h2><p>${messageText('desc')}</p><div class="cmsGrid"><div class="cmsCard"><strong>${inbox}</strong><span>Inbox</span></div><div class="cmsCard"><strong>${convIds.length}</strong><span>${lang==='es'?'Conversaciones':'Conversations'}</span></div><div class="cmsCard"><strong>${unreadCount()}</strong><span>${lang==='es'?'No leídos':'Unread'}</span></div></div>${body}</div>`;
+  setTimeout(()=>{const th=$('messageThread'); if(th) th.scrollTop=th.scrollHeight;},50);
+}
+function startMessageFromSelect(){const id=$('messageMemberSelect')?.value;if(!id)return;selectConversation(id);}
+async function selectConversation(id){activeMessageUserId=id;await markConversationRead(id);renderMessagesPage();}
+async function markConversationRead(userId){
+  const unread=(messageRows||[]).filter(m=>m.sender_id===userId&&m.recipient_id===currentUser.id&&!m.read_at);
+  if(!unread.length)return;
+  await sb.from('messages').update({read_at:new Date().toISOString()}).in('id',unread.map(m=>m.id));
+}
+async function sendMessage(){
+  if(!currentUser)return toast(tr('signInFirst'));
+  if(!activeMessageUserId)return toast(messageText('selectMember'));
+  const el=$('messageInput'); const body=(el?.value||'').trim(); if(!body)return;
+  const {error}=await sb.from('messages').insert({sender_id:currentUser.id,recipient_id:activeMessageUserId,body});
+  if(error)return toast(friendlyError(error));
+  el.value='';
+  await renderMessagesPage();
+}
+
 async function boot(){applyLang();applySabbathMode();applyAdminContent();if(!isSupabaseConfigured()){toast('Supabase is not configured yet. Add your Project URL and Publishable key.'); return;}const {data:{session}}=await sb.auth.getSession(); currentUser=session?.user||null;if(currentUser){await loadMe();$('authBox').classList.add('hidden');$('gateNotice')?.classList.add('hidden');$('composer').classList.remove('hidden');document.querySelector('.tabs')?.classList.remove('hidden');$('feed').classList.remove('hidden');$('managementView')?.classList.add('hidden');$('signOutBtn').classList.remove('hidden');$('drawerSignOutBtn')?.classList.remove('hidden');$('myAvatar').innerHTML=avatarInner(myProfile, currentUser.email);$('mobileAvatarBtn').innerHTML=avatarInner(myProfile,currentUser.email);await loadFeed()}else{$('signOutBtn').classList.add('hidden');$('drawerSignOutBtn')?.classList.add('hidden');$('authBox').classList.remove('hidden');$('gateNotice')?.classList.remove('hidden');$('composer').classList.add('hidden');document.querySelector('.tabs')?.classList.add('hidden');$('feed').classList.add('hidden');$('managementView')?.classList.add('hidden');posts=[];comments=[];reactions=[];profiles={};}}
 async function loadMe(){const {data}=await sb.from('profiles').select('*').eq('id',currentUser.id).maybeSingle();myProfile=data||{username:currentUser.user_metadata?.username||currentUser.email?.split('@')[0]||'Member',avatar_url:null,bio:''}}
 async function ensureProfile(username){const existing=(await sb.from('profiles').select('id,username').eq('id',currentUser.id).maybeSingle()).data;const clean=(username||existing?.username||currentUser.user_metadata?.username||currentUser.email.split('@')[0]).trim();const {error}=await sb.from('profiles').upsert({id:currentUser.id,username:clean},{onConflict:'id'}); return error}
-$('langToggle').onclick=()=>{lang=lang==='es'?'en':'es';localStorage.setItem('churchForumLang',lang);applyLang();renderFeed();};
+$('langToggle').onclick=()=>{lang=lang==='es'?'en':'es';localStorage.setItem('churchForumLang',lang);applyLang();renderFeed(); if(activeChurchPage==='messages')renderMessagesPage();};
 let authMode='login';
 function setAuthMode(mode){authMode=mode;const isSignup=mode==='signup';$('username').classList.toggle('hidden',!isSignup);$('loginTab').classList.toggle('active',!isSignup);$('signupTab').classList.toggle('active',isSignup);$('loginBtn').classList.toggle('hidden',isSignup);$('forgotBtn').classList.toggle('hidden',isSignup);$('signupBtn').textContent=isSignup?tr('createAccount'):tr('createNewAccount');$('authHelp').textContent=isSignup?tr('signupHelp'):tr('loginHelp');$('email').placeholder=tr(isSignup?'email':'emailLogin');$('username').placeholder=tr('username');$('password').placeholder=tr('password');}
 $('loginTab').onclick=()=>setAuthMode('login');
@@ -814,7 +924,7 @@ async function sharePost(id){
   }catch(e){}
   copyTextFallback(url);
 }
-sb.channel('forum-live').on('postgres_changes',{event:'*',schema:'public',table:'posts'},loadFeed).on('postgres_changes',{event:'*',schema:'public',table:'comments'},loadFeed).on('postgres_changes',{event:'*',schema:'public',table:'reactions'},loadFeed).subscribe();
+sb.channel('forum-live').on('postgres_changes',{event:'*',schema:'public',table:'posts'},loadFeed).on('postgres_changes',{event:'*',schema:'public',table:'comments'},loadFeed).on('postgres_changes',{event:'*',schema:'public',table:'reactions'},loadFeed).on('postgres_changes',{event:'*',schema:'public',table:'messages'},()=>{if(activeChurchPage==='messages')renderMessagesPage();}).subscribe();
 boot();
 </script>
 </body>
