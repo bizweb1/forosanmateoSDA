@@ -228,7 +228,72 @@ body.sabbathMode .hero{background:linear-gradient(135deg,#fff8e7,#eaf6ff)}
 .messageStart select{flex:1;border:1px solid var(--line);border-radius:14px;padding:11px;background:#fff;color:var(--navy);font-weight:700}
 @media(max-width:760px){.messageLayout{grid-template-columns:1fr}.messagePeople{max-height:220px}.messageChat{min-height:360px}.messageThread{max-height:360px}.messageBubble{max-width:88%}}
 
-  </style>
+  
+
+/* Mobile post action bar fix: show only real controls, no blank pills */
+@media (max-width:760px){
+  .actions{
+    display:grid!important;
+    grid-template-columns:repeat(4, minmax(0,1fr))!important;
+    gap:8px!important;
+    padding:10px 12px 12px!important;
+    border-top:1px solid #eef2f6!important;
+    border-bottom:0!important;
+    overflow:visible!important;
+  }
+  .actions button{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:5px!important;
+    min-height:44px!important;
+    min-width:0!important;
+    flex:initial!important;
+    width:100%!important;
+    border-radius:999px!important;
+    padding:10px 6px!important;
+    background:#f3f6fa!important;
+    color:#18365d!important;
+    font-size:13px!important;
+    line-height:1.1!important;
+    font-weight:900!important;
+    white-space:normal!important;
+    text-align:center!important;
+  }
+  .actions button::before{content:none!important;}
+  .actions button:empty{display:none!important;}
+  .counts{
+    display:flex!important;
+    align-items:center!important;
+    flex-wrap:wrap!important;
+    gap:10px!important;
+    padding:10px 16px 8px!important;
+    font-size:15px!important;
+  }
+  .commentInput{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) 48px!important;
+    gap:10px!important;
+    padding-top:8px!important;
+  }
+  .commentInput input{
+    min-width:0!important;
+    height:48px!important;
+    font-size:15px!important;
+  }
+  .commentInput .send, .send{
+    width:48px!important;
+    height:48px!important;
+    font-size:20px!important;
+  }
+  .postBody{word-break:break-word!important; overflow-wrap:anywhere!important;}
+}
+@media (max-width:390px){
+  .actions{grid-template-columns:repeat(2, minmax(0,1fr))!important;}
+  .actions button{font-size:14px!important;}
+}
+
+</style>
 </head>
 <body>
 <!--
