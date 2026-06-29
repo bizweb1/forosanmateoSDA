@@ -515,7 +515,7 @@ create policy "comments delete own" on comments for delete using (auth.uid()=use
       <div class="tools"><button class="tool" id="verseTool">📖 <span data-i18n="verse">Versículo</span></button><label class="tool">🖼️ <span data-i18n="photo">Foto</span><input id="photoFile" type="file" accept="image/*" hidden></label><button class="tool" id="youtubeTool">🎬 YouTube</button><button class="submit" id="publishBtn" data-i18n="post">Publicar</button></div>
       <div id="fileName" style="color:var(--muted);font-size:13px;margin-top:8px"></div>
     </section>
-    <div class="tabs"><button class="tab active" data-i18n="forYou">Para ti</button><button class="tab" data-i18n="recent">Recientes</button><button class="tab" data-i18n="verseGraphics">Gráficos de versículos</button><button class="tab" data-i18n="videos">Videos</button></div>
+    <div class="tabs"><button class="tab active" data-tab="recent" data-i18n="recent" onclick="setFeedFilter('recent',this)">Recientes</button><button class="tab" data-tab="prayer" data-i18n="prayer" onclick="setFeedFilter('prayer',this)">Oración</button><button class="tab" data-tab="videos" data-i18n="videos" onclick="setFeedFilter('videos',this)">Videos</button></div>
     <section id="feed"></section>
     <section id="managementView" class="hidden"></section>
   </main>
@@ -1015,7 +1015,27 @@ async function loadFeed(){
   renderPrayerTicker();
   if(activeChurchPage!=='feed') renderManagementPage(activeChurchPage);
 }
-function renderFeed(target='feed', list=posts){$(target).innerHTML=list.map(postHTML).join('')||`<div class="card" style="padding:22px;color:var(--muted)">${tr('noPosts')}</div>`}
+let feedFilter='recent';
+function applyFeedFilter(list){
+  if(feedFilter==='prayer') return list.filter(isPrayerPost);
+  if(feedFilter==='videos') return list.filter(p=>p.youtube_url && youtubeId(p.youtube_url));
+  return list; // 'recent' = all posts, already newest-first
+}
+function setFeedFilter(name,btn){
+  feedFilter=name;
+  document.querySelectorAll('.tabs .tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderFeed();
+}
+function renderFeed(target='feed', list=null){
+  // When rendering the main feed with no explicit list, apply the active tab filter.
+  const base = list || posts;
+  const rows = (target==='feed' && !list) ? applyFeedFilter(base) : base;
+  const empty = feedFilter==='prayer' ? (lang==='es'?'No hay peticiones de oración todavía.':'No prayer requests yet.')
+              : feedFilter==='videos' ? (lang==='es'?'No hay videos todavía.':'No videos yet.')
+              : tr('noPosts');
+  $(target).innerHTML=rows.map(postHTML).join('')||`<div class="card" style="padding:22px;color:var(--muted)">${empty}</div>`;
+}
 function postHTML(p){
   const prof=profiles[p.user_id]||{username:'Church Member'};
   const cs=comments.filter(c=>c.post_id===p.id);
