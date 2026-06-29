@@ -520,6 +520,16 @@ create policy "comments delete own" on comments for delete using (auth.uid()=use
     <section id="managementView" class="hidden"></section>
   </main>
   <aside class="right">
+    <div class="sideCard prayerTickerCard">
+      <div class="prayerTickerHeader">
+        <h3 id="prayerTickerTitle">Peticiones de oración</h3>
+        <span class="prayerTickerBadge" id="prayerTickerBadge">En oración</span>
+      </div>
+      <div class="prayerTicker">
+        <div class="prayerTickerList" id="prayerTickerList"></div>
+      </div>
+      <button class="authBtn" type="button" style="margin-top:12px" onclick="showChurchPage('prayer', document.querySelector('.nav button[data-page=prayer]'))" id="prayerTickerCta">+ Nueva petición</button>
+    </div>
     <div class="sideCard">
       <h3 id="rightVerseTitle">Versículo de ánimo</h3>
       <p class="quoteText" id="rightVerseText">No dejando de congregarnos, como algunos tienen por costumbre, sino exhortándonos; y tanto más, cuanto veis que aquel día se acerca.</p>
@@ -612,7 +622,7 @@ create policy "comments delete own" on comments for delete using (auth.uid()=use
   <button type="button" onclick="document.querySelector('.search')?.scrollIntoView({behavior:'smooth'});setMobileActive(this)"><b>🔍</b><span data-i18n="mobileSearch">Buscar</span></button>
   <button type="button" onclick="showChurchPage('verses');setMobileActive(this)"><b>📖</b><span data-i18n="mobileVerses">Versos</span></button>
   <button type="button" onclick="showChurchPage('media');setMobileActive(this)"><b>📂</b><span data-i18n="mobileMedia">Media</span></button>
-  <button class="postFloat" type="button" onclick="document.querySelector('#postText')?.focus();document.querySelector('#composer')?.scrollIntoView({behavior:'smooth'});setMobileActive(this)"><b>✎</b><span data-i18n="mobilePost">Publicar</span></button>
+  <button class="postFloat" type="button" onclick="openComposer(this)"><b>✎</b><span data-i18n="mobilePost">Publicar</span></button>
 </nav>
 <script>
 function toggleMobileDrawer(force){document.body.classList.toggle('drawerOpen', typeof force==='boolean'?force:!document.body.classList.contains('drawerOpen'));}
@@ -705,12 +715,17 @@ function openAdminMenuGate(btn){
   showChurchPage('admin-dashboard', btn || $('adminUnlockBtn'));
 }
 function setMainFeedVisible(show){
-  const selectors=['.hero','authBox','composer','.tabs','feed'];
-  selectors.forEach(sel=>{
-    const el=sel.startsWith('.')?document.querySelector(sel):$(sel);
-    if(el) el.classList.toggle('hidden',!show);
-  });
+  // .hero always follows the feed view
+  document.querySelector('.hero')?.classList.toggle('hidden',!show);
   if($('managementView')) $('managementView').classList.toggle('hidden',show);
+  const loggedIn=!!currentUser;
+  // Auth-gated elements depend on BOTH the feed view AND login state:
+  // signed-in users see composer/tabs/feed; signed-out users see the login box + gate notice.
+  $('authBox')?.classList.toggle('hidden', !show || loggedIn);
+  $('gateNotice')?.classList.toggle('hidden', !show || loggedIn);
+  $('composer')?.classList.toggle('hidden', !show || !loggedIn);
+  document.querySelector('.tabs')?.classList.toggle('hidden', !show || !loggedIn);
+  $('feed')?.classList.toggle('hidden', !show || !loggedIn);
 }
 function showChurchPage(page, btn){
   activeChurchPage=page;
@@ -726,6 +741,28 @@ function showChurchPage(page, btn){
   renderManagementPage(page);
   window.scrollTo({top:0,behavior:'smooth'});
 }
+function openComposer(btn){
+  document.body.classList.remove('drawerOpen');
+  // If the user is on a management/section page, return to the main feed so the composer is visible
+  if(activeChurchPage!=='feed'){
+    showChurchPage('feed', document.querySelector('.nav button[data-page=feed]'));
+  }
+  setMobileActive(btn);
+  const composer=$('composer');
+  const postText=$('postText');
+  // Composer is hidden until the user is signed in
+  if(!composer || composer.classList.contains('hidden')){
+    toast(tr('signInFirst'));
+    $('authBox')?.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+  // Defer so layout settles after any page switch, then scroll + focus
+  requestAnimationFrame(()=>{
+    composer.scrollIntoView({behavior:'smooth',block:'center'});
+    setTimeout(()=>{ try{ postText?.focus({preventScroll:true}); }catch(e){ postText?.focus(); } }, 350);
+  });
+}
+window.openComposer=openComposer;
 function renderManagementPage(page){
   const view=$('managementView'); if(!view) return;
   if(page==='messages'){ renderMessagesPage(); return; }
@@ -843,7 +880,7 @@ async function sendMessage(){
 async function boot(){applyLang();applySabbathMode();applyAdminContent();if(!isSupabaseConfigured()){toast('Supabase is not configured yet. Add your Project URL and Publishable key.'); return;}const {data:{session}}=await sb.auth.getSession(); currentUser=session?.user||null;if(currentUser){await loadMe();$('authBox').classList.add('hidden');$('gateNotice')?.classList.add('hidden');$('composer').classList.remove('hidden');document.querySelector('.tabs')?.classList.remove('hidden');$('feed').classList.remove('hidden');$('managementView')?.classList.add('hidden');$('signOutBtn').classList.remove('hidden');$('drawerSignOutBtn')?.classList.remove('hidden');$('myAvatar').innerHTML=avatarInner(myProfile, currentUser.email);$('mobileAvatarBtn').innerHTML=avatarInner(myProfile,currentUser.email);await loadFeed()}else{$('signOutBtn').classList.add('hidden');$('drawerSignOutBtn')?.classList.add('hidden');$('authBox').classList.remove('hidden');$('gateNotice')?.classList.remove('hidden');$('composer').classList.add('hidden');document.querySelector('.tabs')?.classList.add('hidden');$('feed').classList.add('hidden');$('managementView')?.classList.add('hidden');posts=[];comments=[];reactions=[];profiles={};}}
 async function loadMe(){const {data}=await sb.from('profiles').select('*').eq('id',currentUser.id).maybeSingle();myProfile=data||{username:currentUser.user_metadata?.username||currentUser.email?.split('@')[0]||'Member',avatar_url:null,bio:''}}
 async function ensureProfile(username){const existing=(await sb.from('profiles').select('id,username').eq('id',currentUser.id).maybeSingle()).data;const clean=(username||existing?.username||currentUser.user_metadata?.username||currentUser.email.split('@')[0]).trim();const {error}=await sb.from('profiles').upsert({id:currentUser.id,username:clean},{onConflict:'id'}); return error}
-$('langToggle').onclick=()=>{lang=lang==='es'?'en':'es';localStorage.setItem('churchForumLang',lang);applyLang();renderFeed(); if(activeChurchPage==='messages')renderMessagesPage();};
+$('langToggle').onclick=()=>{lang=lang==='es'?'en':'es';localStorage.setItem('churchForumLang',lang);applyLang();renderFeed();renderPrayerTicker(); if(activeChurchPage==='messages')renderMessagesPage();};
 let authMode='login';
 function setAuthMode(mode){authMode=mode;const isSignup=mode==='signup';$('username').classList.toggle('hidden',!isSignup);$('loginTab').classList.toggle('active',!isSignup);$('signupTab').classList.toggle('active',isSignup);$('loginBtn').classList.toggle('hidden',isSignup);$('forgotBtn').classList.toggle('hidden',isSignup);$('signupBtn').textContent=isSignup?tr('createAccount'):tr('createNewAccount');$('authHelp').textContent=isSignup?tr('signupHelp'):tr('loginHelp');$('email').placeholder=tr(isSignup?'email':'emailLogin');$('username').placeholder=tr('username');$('password').placeholder=tr('password');}
 $('loginTab').onclick=()=>setAuthMode('login');
@@ -936,19 +973,20 @@ function isTestimonyPost(p){
 function renderPrayerTicker(){
   const listEl=$('prayerTickerList');
   if(!listEl)return;
-  if($('prayerTickerTitle')) $('prayerTickerTitle').textContent = currentLang==='es' ? 'Peticiones de oración' : 'Prayer Requests';
-  if($('prayerTickerBadge')) $('prayerTickerBadge').textContent = currentLang==='es' ? 'En oración' : 'Praying';
+  if($('prayerTickerTitle')) $('prayerTickerTitle').textContent = lang==='es' ? 'Peticiones de oración' : 'Prayer Requests';
+  if($('prayerTickerBadge')) $('prayerTickerBadge').textContent = lang==='es' ? 'En oración' : 'Praying';
+  if($('prayerTickerCta')) $('prayerTickerCta').textContent = lang==='es' ? '+ Nueva petición' : '+ New request';
   const prayerPosts=(posts||[]).filter(isPrayerPost).slice(0,8);
   if(!prayerPosts.length){
     listEl.style.animation='none';
-    listEl.innerHTML=`<div class="prayerEmpty">${currentLang==='es'?'Las peticiones aparecerán aquí cuando la iglesia las comparta.':'Prayer requests will appear here when the church shares them.'}</div>`;
+    listEl.innerHTML=`<div class="prayerEmpty">${lang==='es'?'Las peticiones aparecerán aquí cuando la iglesia las comparta.':'Prayer requests will appear here when the church shares them.'}</div>`;
     return;
   }
   const items=prayerPosts.map(p=>{
-    const prof=profiles[p.user_id]||{username: currentLang==='es'?'Miembro':'Member'};
+    const prof=profiles[p.user_id]||{username: lang==='es'?'Miembro':'Member'};
     const prays=(reactions||[]).filter(r=>r.post_id===p.id && r.type==='pray').length;
     const excerpt=safe(prayerExcerpt(p.body)||p.body||'');
-    return `<div class="prayerMini" onclick="openPost(${p.id})"><div class="prayerMiniIcon">🙏</div><div><strong>${safe(prof.username||'Member')}</strong><p>${excerpt}</p><div class="prayerMiniMeta">🙏 ${prays} ${currentLang==='es'?'orando':'praying'} · ${timeAgo(p.created_at)}</div></div></div>`;
+    return `<div class="prayerMini" onclick="openPost(${p.id})"><div class="prayerMiniIcon">🙏</div><div><strong>${safe(prof.username||'Member')}</strong><p>${excerpt}</p><div class="prayerMiniMeta">🙏 ${prays} ${lang==='es'?'orando':'praying'} · ${timeAgo(p.created_at)}</div></div></div>`;
   }).join('');
   listEl.innerHTML=items+items;
   listEl.style.animation=prayerPosts.length>2?'prayerScroll 18s linear infinite':'none';
