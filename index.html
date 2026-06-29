@@ -461,6 +461,7 @@ function friendlyError(error){
   const msg = String(error?.message || error || 'Something went wrong');
   const low = msg.toLowerCase();
   if(low.includes('failed to fetch')) return 'Connection failed. Check your Supabase URL/key and make sure this page is opened from GitHub Pages/localhost.';
+  if(low.includes('relation') && low.includes('does not exist')) return 'Database table missing. Run the updated social SQL once in Supabase.';
   if(low.includes('row-level security')) return 'Database permission blocked this action. Run the social-actions SQL policies once in Supabase.';
   if(low.includes('duplicate key')) return 'You already reacted to this post.';
   if(low.includes('violates check constraint')) return 'Reaction type blocked. Run the updated forum SQL once in Supabase.';
@@ -645,7 +646,7 @@ function postHTML(p){
   const type=p.post_type || (p.verse_ref&&p.media_url?'verse_graphic':'post');
   const typeLabel=type==='prayer'?`<span class="prayerBadge">🙏 ${tr('prayerRequest')}</span>`:type==='verse_graphic'?`<span class="typeBadge verse">📖 ${tr('bibleGraphic')}</span>`:type==='testimony'?`<span class="typeBadge testimony">❤️ ${tr('testimony')}</span>`:'';
   const bodyBlock=p.verse_ref?`<div class="versePost"><span class="ref">${safe(p.verse_ref)}</span><br>${safe(p.body||'')}</div>`:`<div class="postBody">${typeLabel}${linkify(safe(p.body||''))}</div>`;
-  return `<article class="card ${type==='prayer'?'prayerCard':''}" data-id="${p.id}"><div class="postHead"><div class="avatar">${avatarInner(prof)}</div><div><div class="name">${safe(prof.username)}</div><div class="meta">${type==='prayer'?tr('prayerWall'):'Church Forum'} · ${timeAgo(p.created_at)} · 🌐</div></div>${currentUser?.id===p.user_id?`<button class="menu" onclick="deletePost(${p.id})">⋯</button>`:''}</div>${bodyBlock}${p.media_url?`<img class="media" src="${p.media_url}" onclick="openPost(${p.id})">`:''}${yt?`<div class="yt"><iframe src="https://www.youtube.com/embed/${yt}" allowfullscreen></iframe></div>`:''}<div class="counts">${likes?`👍 ${likes}`:''} ${loves?`❤️ ${loves}`:''} ${prays?`🙏 ${prays}`:''} ${amens?`✝️ ${amens}`:''} <span>${cs.length} ${tr('comments')}</span></div><div class="actions"><button onclick="react(${p.id},'love')">❤️ ${tr('love')}</button><button onclick="react(${p.id},'pray')">🙏 ${type==='prayer'?tr('imPraying'):tr('pray')}</button><button onclick="react(${p.id},'amen')">✝️ ${tr('amen')}</button><button onclick="react(${p.id},'like')">👍 ${tr('like')}</button><button onclick="openPost(${p.id})">💬 ${tr('reply')}</button><button onclick="sharePost(${p.id})">↗ ${tr('share')}</button></div><div class="comments">${top.slice(0,3).map(c=>commentHTML(c,cs)).join('')}${cs.length>3?`<button class="smallBtn" onclick="openPost(${p.id})">${tr('viewAll')}</button>`:''}<div class="commentInput"><input id="comment-${p.id}" placeholder="${tr('addComment')}"><button class="send" onclick="addComment(${p.id})">➜</button></div></div></article>`
+  return `<article class="card ${type==='prayer'?'prayerCard':''}" data-id="${p.id}"><div class="postHead"><div class="avatar">${avatarInner(prof)}</div><div><div class="name">${safe(prof.username)}</div><div class="meta">${type==='prayer'?tr('prayerWall'):'Church Forum'} · ${timeAgo(p.created_at)} · 🌐</div></div>${currentUser?.id===p.user_id?`<button class="menu" onclick="deletePost(${p.id})">⋯</button>`:''}</div>${bodyBlock}${p.media_url?`<img class="media" src="${p.media_url}" onclick="openPost(${p.id})">`:''}${yt?`<div class="yt"><iframe src="https://www.youtube.com/embed/${yt}" allowfullscreen></iframe></div>`:''}<div class="counts">${likes?`👍 ${likes}`:''} ${loves?`❤️ ${loves}`:''} ${prays?`🙏 ${prays}`:''} ${amens?`✝️ ${amens}`:''} <span>${cs.length} ${tr('comments')}</span></div><div class="actions"><button onclick="react(${p.id},'love')">❤️ ${tr('love')}</button><button onclick="react(${p.id},'pray')">🙏 ${type==='prayer'?tr('imPraying'):tr('pray')}</button><button onclick="react(${p.id},'amen')">✝️ ${tr('amen')}</button><button onclick="react(${p.id},'like')">👍 ${tr('like')}</button><button onclick="openPost(${p.id})">💬 ${tr('reply')}</button><button onclick="sharePost(${p.id})">↗ ${tr('share')}</button></div><div class="comments">${top.slice(0,3).map(c=>commentHTML(c,cs)).join('')}${cs.length>3?`<button class="smallBtn" onclick="openPost(${p.id})">${tr('viewAll')}</button>`:''}<div class="commentInput"><input id="comment-${p.id}" placeholder="${tr('addComment')}" onkeydown="if(event.key==='Enter'){event.preventDefault();addComment(${p.id})}"><button class="send" onclick="addComment(${p.id})">➜</button></div></div></article>`
 }
 function commentHTML(c,all){const prof=profiles[c.user_id]||{username:'Member'};const replies=all.filter(x=>x.parent_id===c.id);return `<div class="comment ${c.parent_id?'reply':''}"><div class="avatar" style="width:36px;height:36px;font-size:13px">${avatarInner(prof)}</div><div class="bubble"><strong>${safe(prof.username)}</strong><div>${safe(c.body)}</div><button class="smallBtn" onclick="replyBox(${c.post_id},${c.id})">${tr('reply')}</button><div id="replybox-${c.id}"></div>${replies.map(r=>commentHTML(r,all)).join('')}</div></div>`}
 
@@ -657,24 +658,39 @@ $('profilePhoto')?.addEventListener('change',e=>{const f=e.target.files[0];if(!f
 async function saveProfileSettings(){if(!currentUser)return toast('Sign in first');let username=$('profileUsername').value.trim();let bio=$('profileBio').value.trim();if(!username)return toast('Username is required');let avatar_url=myProfile?.avatar_url||null;const f=$('profilePhoto').files[0];if(f){if(f.size>5*1024*1024)return toast('Photo must be under 5MB');const path=`avatars/${currentUser.id}-${Date.now()}-${f.name.replace(/[^a-z0-9.]/gi,'-')}`;const up=await sb.storage.from('post-images').upload(path,f,{upsert:true});if(up.error)return toast(friendlyError(up.error));avatar_url=sb.storage.from('post-images').getPublicUrl(path).data.publicUrl;}const {error}=await sb.from('profiles').upsert({id:currentUser.id,username,bio,avatar_url},{onConflict:'id'});if(error)return toast(friendlyError(error));await loadMe();$('myAvatar').innerHTML=avatarInner(myProfile,currentUser.email);$('mobileAvatarBtn').innerHTML=avatarInner(myProfile,currentUser.email);closeProfileSettings();toast(tr('profileUpdated'));await loadFeed()}
 function linkify(text){return text.replace(/(https?:\/\/[^\s]+)/g,'<a target="_blank" href="$1">$1</a>')}
 async function react(post_id,type){
-  if(!currentUser)return toast('Sign in first');
-  const exists=reactions.find(r=>r.post_id===post_id&&r.user_id===currentUser.id&&r.type===type);
-  if(exists){
-    const {error}=await sb.from('reactions').delete().eq('id',exists.id);
+  if(!currentUser)return toast(tr('loginHelp')||'Sign in first');
+  if(!['like','love','pray','amen'].includes(type))return toast('Invalid reaction');
+  const existing=await sb.from('reactions').select('id').eq('post_id',post_id).eq('user_id',currentUser.id).eq('type',type).maybeSingle();
+  if(existing.error)return toast(friendlyError(existing.error));
+  if(existing.data){
+    const {error}=await sb.from('reactions').delete().eq('id',existing.data.id);
     if(error)return toast(friendlyError(error));
   }else{
-    const {error}=await sb.from('reactions').insert({post_id,user_id:currentUser.id,type});
+    const {error}=await sb.from('reactions').insert({post_id:post_id,user_id:currentUser.id,type:type});
     if(error)return toast(friendlyError(error));
   }
   await loadFeed();
   const m=$('postModal');
   if(m?.classList.contains('show'))openPost(post_id);
 }
-async function addComment(post_id,parent_id=null){if(!currentUser)return toast('Sign in first');const el=$(parent_id?`replyinput-${parent_id}`:`comment-${post_id}`);const body=el.value.trim();if(!body)return;const {error}=await sb.from('comments').insert({post_id,user_id:currentUser.id,parent_id,body});if(error)return toast(friendlyError(error));el.value='';await loadFeed();const m=$('postModal');if(m.classList.contains('show'))openPost(post_id)}
+async function addComment(post_id,parent_id=null){
+  if(!currentUser)return toast(tr('loginHelp')||'Sign in first');
+  const el=$(parent_id?`replyinput-${parent_id}`:`comment-${post_id}`);
+  if(!el)return toast('Reply box not found. Refresh and try again.');
+  const body=el.value.trim();
+  if(!body)return;
+  const payload={post_id:post_id,user_id:currentUser.id,parent_id:parent_id,body:body};
+  const {error}=await sb.from('comments').insert(payload);
+  if(error)return toast(friendlyError(error));
+  el.value='';
+  await loadFeed();
+  const m=$('postModal');
+  if(m?.classList.contains('show'))openPost(post_id);
+}
 function replyBox(post_id,cid){
   const box=$(`replybox-${cid}`);
   if(!box)return;
-  box.innerHTML=`<div class="commentInput replyBox"><input id="replyinput-${cid}" placeholder="${tr('reply')}..."><button class="send" onclick="addComment(${post_id},${cid})">➜</button></div>`;
+  box.innerHTML=`<div class="commentInput replyBox"><input id="replyinput-${cid}" placeholder="${tr('reply')}..." onkeydown="if(event.key==='Enter'){event.preventDefault();addComment(${post_id},${cid})}"><button class="send" onclick="addComment(${post_id},${cid})">➜</button></div>`;
   setTimeout(()=>$( `replyinput-${cid}` )?.focus(),50);
 }
 function openPost(id){const p=posts.find(x=>x.id===id);$('modalContent').innerHTML=postHTML(p);$('postModal').classList.add('show')}
