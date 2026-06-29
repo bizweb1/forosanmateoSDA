@@ -751,9 +751,18 @@ async function react(post_id,type){
   const m=$('postModal');
   if(m?.classList.contains('show'))openPost(post_id);
 }
+function findScopedInput(id){
+  // Fix for modal replies/comments: the feed and popup can contain duplicate input IDs.
+  // Start from the clicked button/input's post card first, then fall back to the open modal, then document.
+  const evTarget=window.event && window.event.target;
+  const eventRoot=evTarget?.closest?.('article');
+  const modalRoot=$('postModal')?.classList.contains('show') ? $('modalContent') : null;
+  return eventRoot?.querySelector?.(`[id="${id}"]`) || modalRoot?.querySelector?.(`[id="${id}"]`) || $(id);
+}
 async function addComment(post_id,parent_id=null){
   if(!currentUser)return toast(tr('loginHelp')||'Sign in first');
-  const el=$(parent_id?`replyinput-${parent_id}`:`comment-${post_id}`);
+  const inputId=parent_id?`replyinput-${parent_id}`:`comment-${post_id}`;
+  const el=findScopedInput(inputId);
   if(!el)return toast('Reply box not found. Refresh and try again.');
   const body=el.value.trim();
   if(!body)return;
@@ -766,12 +775,12 @@ async function addComment(post_id,parent_id=null){
   if(m?.classList.contains('show'))openPost(post_id);
 }
 function replyBox(post_id,cid){
-  const box=$(`replybox-${cid}`);
+  const box=findScopedInput(`replybox-${cid}`);
   if(!box)return;
   box.innerHTML=`<div class="commentInput replyBox"><input id="replyinput-${cid}" placeholder="${tr('reply')}..." onkeydown="if(event.key==='Enter'){event.preventDefault();addComment(${post_id},${cid})}"><button class="send" onclick="addComment(${post_id},${cid})">➜</button></div>`;
-  setTimeout(()=>$( `replyinput-${cid}` )?.focus(),50);
+  setTimeout(()=>findScopedInput(`replyinput-${cid}`)?.focus(),50);
 }
-function openPost(id){const p=posts.find(x=>x.id===id);$('modalContent').innerHTML=postHTML(p);$('postModal').classList.add('show')}
+function openPost(id){const p=posts.find(x=>x.id===id);if(!p)return;$('modalContent').innerHTML=postHTML(p);$('postModal').classList.add('show')}
 function closeModal(){$('postModal').classList.remove('show')}
 async function deletePost(id){if(!confirm(tr('deletePost')))return;await sb.from('posts').delete().eq('id',id);loadFeed()}
 function copyTextFallback(text){
