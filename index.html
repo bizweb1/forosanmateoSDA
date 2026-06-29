@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gathering — Church Forum</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --ink:#1c2733;        /* deep slate text */
+  --ink-soft:#5a6b7b;   /* muted text */
+  --sky:#5b8fc4;        /* soft primary blue */
+  --sky-deep:#3f6ea3;   /* hover/active blue */
+  --sky-wash:#eef4fa;   /* pale blue surface */
+  --line:#e2e9f0;       /* hairline */
+  --bg:#f7fafd;         /* page */
+  --card:#ffffff;       /* card */
+  --gold:#c9a24b;       /* gentle accent for verse refs */
+  --danger:#c0584f;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(28,39,51,.04),0 8px 24px rgba(63,110,163,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:var(--bg);color:var(--ink);line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.serif{font-family:'Georgia','Times New Roman',serif}
+
+/* ---------- top bar ---------- */
+header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(247,250,253,.85);backdrop-filter:saturate(180%) blur(12px);
+  border-bottom:1px solid var(--line);
+}
+.bar{max-width:680px;margin:0 auto;padding:14px 18px;display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:1.05rem;letter-spacing:-.01em}
+.mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--sky),var(--sky-deep));
+  display:grid;place-items:center;color:#fff;flex:none}
+.mark svg{width:17px;height:17px}
+.spacer{flex:1}
+.whoami{font-size:.82rem;color:var(--ink-soft);display:none}
+@media(min-width:520px){.whoami{display:block}}
+.btn{
+  font:inherit;font-size:.86rem;font-weight:500;cursor:pointer;border:none;
+  padding:8px 14px;border-radius:10px;transition:.15s;white-space:nowrap;
+}
+.btn-ghost{background:transparent;color:var(--ink-soft)}
+.btn-ghost:hover{background:var(--sky-wash);color:var(--sky-deep)}
+.btn-primary{background:var(--sky);color:#fff}
+.btn-primary:hover{background:var(--sky-deep)}
+.btn-primary:disabled{opacity:.5;cursor:default}
+
+/* ---------- shell ---------- */
+main{max-width:680px;margin:0 auto;padding:22px 18px 80px}
+
+/* ---------- auth ---------- */
+.auth-wrap{max-width:400px;margin:6vh auto;padding:0 18px;text-align:center}
+.auth-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:30px 26px;text-align:left;margin-top:22px}
+.auth-hero{display:flex;flex-direction:column;align-items:center;gap:14px}
+.auth-mark{width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,var(--sky),var(--sky-deep));
+  display:grid;place-items:center;color:#fff}
+.auth-mark svg{width:28px;height:28px}
+.auth-wrap h1{font-size:1.6rem;font-weight:600;letter-spacing:-.02em}
+.auth-wrap .sub{color:var(--ink-soft);font-size:.92rem;max-width:300px}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:.78rem;font-weight:600;color:var(--ink-soft);margin-bottom:5px}
+.field input{
+  width:100%;font:inherit;font-size:.95rem;padding:11px 13px;border:1px solid var(--line);
+  border-radius:10px;background:#fbfdff;transition:.15s;color:var(--ink)}
+.field input:focus{outline:none;border-color:var(--sky);background:#fff;box-shadow:0 0 0 3px var(--sky-wash)}
+.auth-card .btn-primary{width:100%;padding:12px;font-size:.95rem;margin-top:4px}
+.toggle{text-align:center;font-size:.85rem;color:var(--ink-soft);margin-top:16px}
+.toggle a{color:var(--sky-deep);font-weight:500;cursor:pointer;text-decoration:none}
+.toggle a:hover{text-decoration:underline}
+.note{font-size:.8rem;padding:9px 12px;border-radius:9px;margin-bottom:14px;display:none}
+.note.err{display:block;background:#fdf0ef;color:var(--danger);border:1px solid #f3d6d3}
+.note.ok{display:block;background:#eef7f0;color:#3a7a4e;border:1px solid #cfe7d6}
+
+/* ---------- composer ---------- */
+.composer{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:16px;margin-bottom:22px}
+.composer textarea{
+  width:100%;font:inherit;font-size:1rem;border:none;resize:none;background:transparent;color:var(--ink);
+  min-height:54px;line-height:1.5}
+.composer textarea:focus{outline:none}
+.composer textarea::placeholder{color:#9fb0c0}
+.verse-row{display:none;margin-top:8px}
+.verse-row.show{display:block}
+.verse-row input{width:100%;font:inherit;font-size:.85rem;padding:8px 11px;border:1px solid var(--line);
+  border-radius:9px;background:#fbfdff;color:var(--gold);font-weight:600}
+.verse-row input:focus{outline:none;border-color:var(--gold)}
+.preview{margin-top:12px;display:none}
+.preview.show{display:block}
+.preview img{max-width:100%;border-radius:10px;border:1px solid var(--line)}
+.preview .yt{position:relative;padding-bottom:56.25%;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.preview .yt iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
+.preview .clear{font-size:.78rem;color:var(--ink-soft);cursor:pointer;margin-top:6px;display:inline-block}
+.preview .clear:hover{color:var(--danger)}
+.composer-bar{display:flex;align-items:center;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.tool{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;cursor:pointer;
+  color:var(--ink-soft);transition:.15s;background:transparent;border:none}
+.tool:hover{background:var(--sky-wash);color:var(--sky-deep)}
+.tool.active{background:var(--sky-wash);color:var(--sky-deep)}
+.tool svg{width:19px;height:19px}
+.composer-bar .spacer{flex:1}
+.post-btn{padding:9px 20px;font-size:.9rem;font-weight:600}
+
+/* ---------- feed ---------- */
+.feed-head{display:flex;align-items:baseline;gap:8px;margin:0 2px 14px;color:var(--ink-soft);font-size:.8rem;
+  text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.feed-head .ln{flex:1;height:1px;background:var(--line)}
+.post{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:16px 18px;margin-bottom:14px}
+.post-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--sky-wash);color:var(--sky-deep);
+  display:grid;place-items:center;font-weight:700;font-size:.85rem;flex:none}
+.meta{line-height:1.3}
+.meta .name{font-weight:600;font-size:.9rem}
+.meta .time{font-size:.76rem;color:var(--ink-soft)}
+.del{margin-left:auto;background:none;border:none;cursor:pointer;color:#c5cfda;padding:4px;border-radius:7px}
+.del:hover{color:var(--danger);background:#fdf0ef}
+.del svg{width:16px;height:16px;display:block}
+.verse-ref{display:inline-block;font-size:.74rem;font-weight:700;letter-spacing:.04em;color:var(--gold);
+  background:#fbf6ea;border:1px solid #f0e3c4;padding:3px 9px;border-radius:7px;margin-bottom:9px}
+.post-text{font-size:1rem;white-space:pre-wrap;word-wrap:break-word;line-height:1.55}
+.post-text.scripture{font-family:'Georgia',serif;font-size:1.12rem;line-height:1.6;color:#2a3744}
+.post-media{margin-top:12px}
+.post-media img{max-width:100%;border-radius:11px;border:1px solid var(--line);display:block}
+.post-media .yt{position:relative;padding-bottom:56.25%;border-radius:11px;overflow:hidden;border:1px solid var(--line)}
+.post-media .yt iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
+
+.empty{text-align:center;padding:50px 20px;color:var(--ink-soft)}
+.empty svg{width:42px;height:42px;opacity:.4;margin-bottom:12px}
+.empty p{font-size:.95rem}
+.loading{text-align:center;padding:40px;color:var(--ink-soft);font-size:.9rem}
+.spin{display:inline-block;width:18px;height:18px;border:2px solid var(--line);border-top-color:var(--sky);
+  border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hidden{display:none!important}
+
+/* config banner */
+.config{max-width:560px;margin:8vh auto;padding:26px;background:#fff;border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);font-size:.9rem;line-height:1.6}
+.config h2{font-size:1.2rem;margin-bottom:10px}
+.config code{background:var(--sky-wash);padding:2px 6px;border-radius:5px;font-size:.85em;color:var(--sky-deep)}
+.config ol{margin:12px 0 0 18px}
+.config li{margin-bottom:6px}
+</style>
+</head>
+<body>
+
+<!-- ============ CONFIG NEEDED ============ -->
+<div id="configScreen" class="config hidden">
+  <h2>One quick setup step</h2>
+  <p>Add your Supabase project URL and anon key near the top of this file (look for <code>SUPABASE_CONFIG</code>), then reload. Everything else is ready to go.</p>
+  <ol>
+    <li>Create a free project at supabase.com</li>
+    <li>Copy your <code>Project URL</code> and <code>anon public</code> key from Project Settings → API</li>
+    <li>Paste them into this file and refresh</li>
+  </ol>
+</div>
+
+<!-- ============ AUTH ============ -->
+<div id="authScreen" class="auth-wrap hidden">
+  <div class="auth-hero">
+    <div class="auth-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6M9 5h6"/><path d="M5 22V9.5a2 2 0 0 1 .8-1.6l5.4-4a1.3 1.3 0 0 1 1.6 0l5.4 4a2 2 0 0 1 .8 1.6V22"/><path d="M5 22h14"/><path d="M10 22v-4a2 2 0 0 1 4 0v4"/></svg>
+    </div>
+    <h1 id="authTitle">Welcome</h1>
+    <p class="sub" id="authSub">Sign in to share verses, photos, and videos with the congregation.</p>
+  </div>
+  <div class="auth-card">
+    <div id="authNote" class="note"></div>
+    <div class="field" id="nameField">
+      <label>Username</label>
+      <input id="username" type="text" autocomplete="username" placeholder="How others will see you" maxlength="24">
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input id="email" type="email" autocomplete="email" placeholder="you@example.com">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="At least 6 characters">
+    </div>
+    <button class="btn btn-primary" id="authBtn">Create account</button>
+    <div class="toggle" id="authToggle">Already have an account? <a id="toggleLink">Sign in</a></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="appScreen" class="hidden">
+  <header>
+    <div class="bar">
+      <div class="brand">
+        <span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6M9 5h6"/><path d="M5 22V9.5a2 2 0 0 1 .8-1.6l5.4-4a1.3 1.3 0 0 1 1.6 0l5.4 4a2 2 0 0 1 .8 1.6V22"/><path d="M5 22h14"/><path d="M10 22v-4a2 2 0 0 1 4 0v4"/></svg></span>
+        Gathering
+      </div>
+      <div class="spacer"></div>
+      <span class="whoami" id="whoami"></span>
+      <button class="btn btn-ghost" id="signOut">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="composer">
+      <textarea id="postText" placeholder="Share a verse, a thought, or a word of encouragement…"></textarea>
+      <div class="verse-row" id="verseRow">
+        <input id="verseRef" type="text" placeholder="Verse reference — e.g. John 3:16" maxlength="40">
+      </div>
+      <div class="preview" id="preview"></div>
+      <input type="file" id="imgInput" accept="image/*" class="hidden">
+      <div class="composer-bar">
+        <button class="tool" id="toolVerse" title="Add a verse reference">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </button>
+        <button class="tool" id="toolImg" title="Add a photo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>
+        </button>
+        <button class="tool" id="toolYt" title="Add a YouTube link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 8a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v8a4 4 0 0 0 4 4h12a4 4 0 0 0 4-4z"/><path d="m10 9 5 3-5 3z"/></svg>
+        </button>
+        <div class="spacer"></div>
+        <button class="btn btn-primary post-btn" id="postBtn" disabled>Post</button>
+      </div>
+    </div>
+
+    <div class="feed-head"><span>Recent</span><span class="ln"></span></div>
+    <div id="feed">
+      <div class="loading"><span class="spin"></span>Loading the feed…</div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ====================================================================
+   SUPABASE_CONFIG  —  paste your two values here, then reload
+   ==================================================================== */
+const SUPABASE_CONFIG = {
+  url:     "https://qgurigduwobnduygstvo.supabase.co",
+  anonKey: "sb_publishable_lTk5HLCMDyyVFz-eESSEeQ_6-VOZmpz"
+};
+/* ==================================================================== */
+
+// ---- elements
+const $ = id => document.getElementById(id);
+const configScreen=$("configScreen"), authScreen=$("authScreen"), appScreen=$("appScreen");
+
+// ---- gate on config
+if(!SUPABASE_CONFIG.url || SUPABASE_CONFIG.url==="YOUR_SUPABASE_URL"){
+  configScreen.classList.remove("hidden");
+} else {
+  boot();
+}
+
+function boot(){
+const sb = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+let me = null, myProfile = null, mode = "signup";
+
+// pending attachment state
+let attach = { type:null, dataUrl:null, file:null, youtube:null };
+
+/* ---------------- auth ui ---------------- */
+const authTitle=$("authTitle"), authSub=$("authSub"), nameField=$("nameField"),
+      authBtn=$("authBtn"), authNote=$("authNote"), toggleLink=$("toggleLink"), authToggle=$("authToggle");
+
+function setMode(m){
+  mode=m; authNote.className="note";
+  if(m==="signup"){
+    authTitle.textContent="Welcome";
+    authSub.textContent="Create an account to share verses, photos, and videos with the congregation.";
+    nameField.style.display="block"; authBtn.textContent="Create account";
+    authToggle.innerHTML='Already have an account? <a id="toggleLink">Sign in</a>';
+  } else {
+    authTitle.textContent="Welcome back";
+    authSub.textContent="Sign in to continue.";
+    nameField.style.display="none"; authBtn.textContent="Sign in";
+    authToggle.innerHTML='New here? <a id="toggleLink">Create an account</a>';
+  }
+  $("toggleLink").onclick=()=>setMode(m==="signup"?"signin":"signup");
+}
+function note(msg,kind){ authNote.textContent=msg; authNote.className="note "+kind; }
+
+authBtn.onclick=async()=>{
+  const email=$("email").value.trim(), pass=$("password").value, uname=$("username").value.trim();
+  if(!email||!pass) return note("Please enter your email and password.","err");
+  if(mode==="signup"&&!uname) return note("Please pick a username.","err");
+  if(mode==="signup"&&pass.length<6) return note("Password needs at least 6 characters.","err");
+  authBtn.disabled=true; authBtn.textContent="One moment…";
+
+  if(mode==="signup"){
+    const {data,error}=await sb.auth.signUp({email,password:pass});
+    if(error){ authBtn.disabled=false; setMode("signup"); return note(error.message,"err"); }
+    // store username in profiles
+    if(data.user){
+      await sb.from("profiles").upsert({id:data.user.id, username:uname});
+    }
+    if(!data.session){
+      note("Account created. Check your email to confirm, then sign in.","ok");
+      authBtn.disabled=false; setMode("signin"); return;
+    }
+  } else {
+    const {error}=await sb.auth.signInWithPassword({email,password:pass});
+    if(error){ authBtn.disabled=false; setMode("signin"); return note(error.message,"err"); }
+  }
+  await loadSession();
+};
+
+/* ---------------- session ---------------- */
+async function loadSession(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){ show("auth"); setMode("signup"); return; }
+  me=session.user;
+  const {data:prof}=await sb.from("profiles").select("*").eq("id",me.id).single();
+  myProfile = prof || {username:(me.email||"Member").split("@")[0]};
+  $("whoami").textContent="Signed in as "+myProfile.username;
+  show("app");
+  loadFeed();
+}
+function show(which){
+  authScreen.classList.toggle("hidden", which!=="auth");
+  appScreen.classList.toggle("hidden", which!=="app");
+}
+$("signOut").onclick=async()=>{ await sb.auth.signOut(); me=null; show("auth"); setMode("signin"); };
+
+/* ---------------- composer ---------------- */
+const postText=$("postText"), preview=$("preview"), postBtn=$("postBtn"),
+      verseRow=$("verseRow"), verseRef=$("verseRef"), imgInput=$("imgInput");
+
+function refreshPostBtn(){
+  const has = postText.value.trim() || attach.dataUrl || attach.youtube;
+  postBtn.disabled = !has;
+}
+postText.addEventListener("input",refreshPostBtn);
+postText.addEventListener("input",()=>{ postText.style.height="auto"; postText.style.height=postText.scrollHeight+"px"; });
+
+$("toolVerse").onclick=function(){
+  verseRow.classList.toggle("show"); this.classList.toggle("active");
+  if(verseRow.classList.contains("show")) verseRef.focus();
+};
+$("toolImg").onclick=()=>imgInput.click();
+imgInput.onchange=()=>{
+  const f=imgInput.files[0]; if(!f) return;
+  if(f.size>5*1024*1024){ alert("Please choose an image under 5 MB."); return; }
+  const r=new FileReader();
+  r.onload=e=>{ attach={type:"image",dataUrl:e.target.result,file:f,youtube:null};
+    renderPreview(); refreshPostBtn(); };
+  r.readAsDataURL(f);
+};
+$("toolYt").onclick=()=>{
+  const url=prompt("Paste a YouTube link:");
+  if(!url) return;
+  const id=parseYouTube(url);
+  if(!id){ alert("That doesn't look like a YouTube link."); return; }
+  attach={type:"youtube",dataUrl:null,file:null,youtube:id};
+  renderPreview(); refreshPostBtn();
+};
+function renderPreview(){
+  if(attach.type==="image"){
+    preview.innerHTML=`<img src="${attach.dataUrl}" alt="preview"><span class="clear" id="clr">Remove photo</span>`;
+  } else if(attach.type==="youtube"){
+    preview.innerHTML=`<div class="yt"><iframe src="https://www.youtube.com/embed/${attach.youtube}" allowfullscreen></iframe></div><span class="clear" id="clr">Remove video</span>`;
+  } else { preview.innerHTML=""; }
+  preview.classList.toggle("show", !!attach.type);
+  const clr=$("clr"); if(clr) clr.onclick=()=>{ attach={type:null,dataUrl:null,file:null,youtube:null};
+    imgInput.value=""; renderPreview(); refreshPostBtn(); };
+}
+function parseYouTube(url){
+  const m=url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+  return m?m[1]:null;
+}
+
+postBtn.onclick=async()=>{
+  postBtn.disabled=true; postBtn.textContent="Posting…";
+  let image_url=null, yt=attach.youtube||null;
+  try{
+    if(attach.type==="image"){
+      const ext=(attach.file.name.split(".").pop()||"jpg").toLowerCase();
+      const path=`${me.id}/${Date.now()}.${ext}`;
+      const {error:upErr}=await sb.storage.from("post-images").upload(path,attach.file,{upsert:false});
+      if(upErr) throw upErr;
+      const {data:pub}=sb.storage.from("post-images").getPublicUrl(path);
+      image_url=pub.publicUrl;
+    }
+    const row={
+      user_id:me.id,
+      username:myProfile.username,
+      body:postText.value.trim()||null,
+      verse_ref:(verseRow.classList.contains("show")&&verseRef.value.trim())?verseRef.value.trim():null,
+      image_url, youtube_id:yt
+    };
+    const {error}=await sb.from("posts").insert(row);
+    if(error) throw error;
+    // reset composer
+    postText.value=""; postText.style.height="auto"; verseRef.value="";
+    verseRow.classList.remove("show"); $("toolVerse").classList.remove("active");
+    attach={type:null,dataUrl:null,file:null,youtube:null}; imgInput.value=""; renderPreview();
+    postBtn.textContent="Post"; refreshPostBtn();
+    loadFeed();
+  }catch(e){
+    alert("Couldn't post: "+(e.message||e));
+    postBtn.disabled=false; postBtn.textContent="Post";
+  }
+};
+
+/* ---------------- feed ---------------- */
+const feed=$("feed");
+function initials(name){ return (name||"?").trim().slice(0,2).toUpperCase(); }
+function timeAgo(ts){
+  const s=Math.floor((Date.now()-new Date(ts))/1000);
+  if(s<60) return "just now";
+  const m=Math.floor(s/60); if(m<60) return m+"m ago";
+  const h=Math.floor(m/60); if(h<24) return h+"h ago";
+  const d=Math.floor(h/24); if(d<7) return d+"d ago";
+  return new Date(ts).toLocaleDateString(undefined,{month:"short",day:"numeric"});
+}
+function esc(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+
+async function loadFeed(){
+  feed.innerHTML=`<div class="loading"><span class="spin"></span>Loading the feed…</div>`;
+  const {data,error}=await sb.from("posts").select("*").order("created_at",{ascending:false}).limit(100);
+  if(error){ feed.innerHTML=`<div class="empty"><p>Couldn't load posts. ${esc(error.message)}</p></div>`; return; }
+  if(!data.length){
+    feed.innerHTML=`<div class="empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <p>Nothing here yet. Be the first to share something.</p></div>`;
+    return;
+  }
+  feed.innerHTML=data.map(renderPost).join("");
+  feed.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>delPost(b.dataset.del));
+}
+function renderPost(p){
+  const mine = me && p.user_id===me.id;
+  let media="";
+  if(p.image_url) media=`<div class="post-media"><img src="${esc(p.image_url)}" alt="shared photo" loading="lazy"></div>`;
+  else if(p.youtube_id) media=`<div class="post-media"><div class="yt"><iframe src="https://www.youtube.com/embed/${esc(p.youtube_id)}" allowfullscreen loading="lazy"></iframe></div></div>`;
+  const ref = p.verse_ref?`<div class="verse-ref">${esc(p.verse_ref)}</div>`:"";
+  const textClass = p.verse_ref ? "post-text scripture" : "post-text";
+  const body = p.body?`<div class="${textClass}">${esc(p.body)}</div>`:"";
+  const del = mine?`<button class="del" data-del="${p.id}" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>`:"";
+  return `<article class="post">
+    <div class="post-top">
+      <div class="avatar">${esc(initials(p.username))}</div>
+      <div class="meta"><div class="name">${esc(p.username||"Member")}</div><div class="time">${timeAgo(p.created_at)}</div></div>
+      ${del}
+    </div>
+    ${ref}${body}${media}
+  </article>`;
+}
+async function delPost(id){
+  if(!confirm("Delete this post?")) return;
+  const {error}=await sb.from("posts").delete().eq("id",id);
+  if(error){ alert("Couldn't delete: "+error.message); return; }
+  loadFeed();
+}
+
+// ---- start
+sb.auth.onAuthStateChange((_e,_s)=>{});
+loadSession();
+}
+</script>
+</body>
+</html>
