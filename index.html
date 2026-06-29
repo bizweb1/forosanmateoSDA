@@ -293,6 +293,79 @@ body.sabbathMode .hero{background:linear-gradient(135deg,#fff8e7,#eaf6ff)}
   .actions button{font-size:14px!important;}
 }
 
+
+
+/* PROFILE PHOTO LAYOUT FIX - keep avatars perfectly circular */
+.avatar,
+.postHead > .avatar,
+.composer .avatar,
+.comment > .avatar,
+.messageChatHead .avatar{
+  width:46px !important;
+  height:46px !important;
+  min-width:46px !important;
+  max-width:46px !important;
+  min-height:46px !important;
+  max-height:46px !important;
+  aspect-ratio:1 / 1 !important;
+  overflow:hidden !important;
+  border-radius:50% !important;
+  flex:0 0 46px !important;
+  padding:0 !important;
+}
+.comment > .avatar,
+.messageChatHead .avatar{
+  width:36px !important;
+  height:36px !important;
+  min-width:36px !important;
+  max-width:36px !important;
+  min-height:36px !important;
+  max-height:36px !important;
+  flex-basis:36px !important;
+}
+.avatar img,
+.avatar > img,
+.mobileAvatarBtn img,
+.profilePhotoPreview img{
+  width:100% !important;
+  height:100% !important;
+  max-width:100% !important;
+  max-height:100% !important;
+  object-fit:cover !important;
+  object-position:center !important;
+  display:block !important;
+  border-radius:50% !important;
+}
+.postHead{
+  align-items:flex-start !important;
+}
+.postHead .avatar + div{
+  min-width:0;
+}
+.composer .row{
+  align-items:flex-start !important;
+}
+.mobileAvatarBtn{
+  overflow:hidden !important;
+  display:grid !important;
+  place-items:center !important;
+}
+.mobileAvatarBtn img{
+  border-radius:50% !important;
+}
+@media(max-width:760px){
+  .postHead > .avatar,
+  .composer .avatar{
+    width:46px !important;
+    height:46px !important;
+    min-width:46px !important;
+    max-width:46px !important;
+    min-height:46px !important;
+    max-height:46px !important;
+    flex-basis:46px !important;
+  }
+}
+
 </style>
 </head>
 <body>
