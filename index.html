@@ -559,7 +559,7 @@ function renderManagementPage(page){
   const pages={
     verses:{icon:'📖',title:'Bible Verses',desc:'Share and browse Bible verse posts and verse graphics.',cards:[['Verse posts',verseCount],['Photos',imageCount],['Popular','Juan 3:16']],body:`<div class="quickPostBox"><button onclick="showChurchPage('feed', document.querySelector('[data-page=feed]'))">+ New verse post</button><button onclick="toast('Verse library coming next')">Verse library</button></div>${postRows}`},
     prayer:{icon:'🙏',title:tr('prayerWall'),desc:tr('prayerDesc'),cards:[[tr('prayerRequests'),(posts||[]).filter(p=>(p.post_type==='prayer')).length],[tr('imPraying'),reactions.filter(r=>r.type==='pray').length],['Urgent','0']],body:`<div class="prayerCreate"><h3 style="margin:0 0 8px;color:var(--navy)">${tr('newPrayer')}</h3><textarea id="quickPrayerText" placeholder="${lang==='es'?'Escribe tu petición de oración...':'Write your prayer request...'}"></textarea><button class="cmsAction" style="margin-top:10px" onclick="quickPrayerPost()">🙏 ${tr('post')}</button></div><div class="cmsList">${(posts||[]).filter(p=>p.post_type==='prayer').map(p=>postHTML(p)).join('')||'<p style="color:var(--muted)">'+tr('noPosts')+'</p>'}</div>`},
-    testimonies:{icon:'❤️',title:'Testimonies',desc:'Members can share how God is working in their lives.',cards:[['Testimonies','0'],['Featured','0'],['This week','0']],body:'<div class="cmsRow"><div><strong>Testimony feed</strong><div class="meta">Will filter posts by testimony category once categories are added.</div></div><span class="cmsPill">Ready</span></div>'},
+    testimonies:{icon:'❤️',title:lang==='es'?'Testimonios':'Testimonies',desc:lang==='es'?'Comparte cómo Dios está obrando en tu vida.':'Share how God is working in your life.',cards:[[lang==='es'?'Testimonios':'Testimonies',(posts||[]).filter(isTestimonyPost).length],[lang==='es'?'Destacados':'Featured',(posts||[]).filter(isTestimonyPost).filter(p=>String(p.body||'').toLowerCase().includes('praise')||String(p.body||'').toLowerCase().includes('gloria')).length],[lang==='es'?'Esta semana':'This week',(posts||[]).filter(isTestimonyPost).filter(p=>new Date(p.created_at)>new Date(Date.now()-7*24*60*60*1000)).length]],body:`<div class="prayerCreate"><h3 style="margin:0 0 8px;color:var(--navy)">❤️ ${lang==='es'?'Nuevo testimonio':'New Testimony'}</h3><p class="meta" style="margin-top:0">${lang==='es'?'Comparte una bendición, respuesta a oración o cómo Dios te ha guiado.':'Share a blessing, answered prayer, or how God has guided you.'}</p><textarea id="quickTestimonyText" placeholder="${lang==='es'?'Escribe tu testimonio...':'Write your testimony...'}"></textarea><button class="cmsAction" style="margin-top:10px;background:#be185d" onclick="quickTestimonyPost()">❤️ ${tr('post')}</button></div><div class="cmsList">${(posts||[]).filter(isTestimonyPost).map(p=>postHTML(p)).join('')||'<p style="color:var(--muted)">'+tr('noPosts')+'</p>'}</div>`},
     events:{icon:'📅',title:'Events',desc:'Church calendar for Sabbath, Bible studies, youth ministry, and announcements.',cards:[['Upcoming',(getAdminContent().events||[]).length],['This month','3'],['RSVPs','0']],body:(getAdminContent().events||[]).map(e=>`<div class="cmsRow"><div><strong>${safe(e.title)}</strong><div class="meta">${safe(e.date)} · ${safe(e.place)}</div></div><span class="cmsPill">Event</span></div>`).join('')},
     members:{icon:'👥',title:'Members',desc:'Church directory and member profiles.',cards:[['Members',memberCount],['Online','1'],['Roles','Member/Admin']],body:Object.values(profiles||{}).map(u=>`<div class="cmsRow"><div><strong>${safe(u.username||'Member')}</strong><div class="meta">${safe(u.bio||u.full_name||'Church Forum member')}</div></div><span class="cmsPill">Member</span></div>`).join('')||'<p>Members will appear after they post or profile data loads.</p>'},
     messages:{icon:'💬',title:'Messages',desc:'Private and ministry group messages.',cards:[['Inbox','0'],['Groups','0'],['Unread','0']],body:'<div class="cmsRow"><div><strong>Messaging system placeholder</strong><div class="meta">For privacy, this needs a messages table and RLS policies.</div></div><span class="cmsPill">Phase 2</span></div>'},
@@ -620,11 +620,18 @@ $('publishBtn').onclick=async()=>{
   }
   let payload={user_id:currentUser.id,body,verse_ref:verse,media_url:media,youtube_url:yt,post_type};
   let res=await sb.from('posts').insert(payload);
-  if(res.error && String(res.error.message||'').includes('post_type')){delete payload.post_type; res=await sb.from('posts').insert(payload);}
+  if(res.error && String(res.error.message||'').includes('post_type')){
+    delete payload.post_type;
+    if(post_type==='prayer') payload.body='🙏 Prayer Request\n\n'+(payload.body||'');
+    if(post_type==='testimony') payload.body='❤️ Testimonio\n\n'+(payload.body||'');
+    if(post_type==='verse_graphic') payload.body='📖 Bible Graphic\n\n'+(payload.body||'');
+    res=await sb.from('posts').insert(payload);
+  }
   if(res.error)return toast(friendlyError(res.error));
   $('postText').value='';$('verseRef').value='';$('youtubeUrl').value='';$('photoFile').value='';$('fileName').textContent='';$('postType').value='post';document.querySelectorAll('.postTypeBtn').forEach((b,i)=>b.classList.toggle('active',i===0));
   await loadFeed();
   if(activeChurchPage==='prayer') renderManagementPage('prayer');
+  if(activeChurchPage==='testimonies') renderManagementPage('testimonies');
 }
 
 async function quickPrayerPost(){
@@ -638,6 +645,17 @@ async function quickPrayerPost(){
   await loadFeed();renderManagementPage('prayer');
 }
 
+async function quickTestimonyPost(){
+  if(!currentUser)return toast(tr('signInFirst'));
+  const body=$('quickTestimonyText')?.value.trim();
+  if(!body)return;
+  let payload={user_id:currentUser.id,body,post_type:'testimony'};
+  let res=await sb.from('posts').insert(payload);
+  if(res.error && String(res.error.message||'').includes('post_type')){delete payload.post_type; payload.body='❤️ Testimonio\n\n'+body; res=await sb.from('posts').insert(payload);}
+  if(res.error)return toast(friendlyError(res.error));
+  await loadFeed();renderManagementPage('testimonies');
+}
+
 function isPrayerPost(p){
   const pt=(p.post_type||'').toLowerCase();
   const body=(p.body||'').toLowerCase();
@@ -645,6 +663,11 @@ function isPrayerPost(p){
 }
 function prayerExcerpt(body){
   return String(body||'').replace(/^🙏\s*(Prayer Request|Petición de Oración|Peticion de Oracion)\s*/i,'').replace(/\n+/g,' ').trim();
+}
+function isTestimonyPost(p){
+  const pt=(p.post_type||'').toLowerCase();
+  const body=(p.body||'').toLowerCase();
+  return pt==='testimony' || body.includes('testimony') || body.includes('testimonio') || body.startsWith('❤️') || body.startsWith('💖');
 }
 function renderPrayerTicker(){
   const listEl=$('prayerTickerList');
@@ -698,7 +721,7 @@ function postHTML(p){
   const count=t=>reactions.filter(r=>r.post_id===p.id&&r.type===t).length;
   const likes=count('like'),loves=count('love'),prays=count('pray'),amens=count('amen');
   const yt=youtubeId(p.youtube_url||'');
-  const type=p.post_type || (p.verse_ref&&p.media_url?'verse_graphic':'post');
+  const type=p.post_type || (isPrayerPost(p)?'prayer':isTestimonyPost(p)?'testimony':(p.verse_ref&&p.media_url?'verse_graphic':'post'));
   const typeLabel=type==='prayer'?`<span class="prayerBadge">🙏 ${tr('prayerRequest')}</span>`:type==='verse_graphic'?`<span class="typeBadge verse">📖 ${tr('bibleGraphic')}</span>`:type==='testimony'?`<span class="typeBadge testimony">❤️ ${tr('testimony')}</span>`:'';
   const bodyBlock=p.verse_ref?`<div class="versePost"><span class="ref">${safe(p.verse_ref)}</span><br>${safe(p.body||'')}</div>`:`<div class="postBody">${typeLabel}${linkify(safe(p.body||''))}</div>`;
   return `<article class="card ${type==='prayer'?'prayerCard':''}" data-id="${p.id}"><div class="postHead"><div class="avatar">${avatarInner(prof)}</div><div><div class="name">${safe(prof.username)}</div><div class="meta">${type==='prayer'?tr('prayerWall'):'Church Forum'} · ${timeAgo(p.created_at)} · 🌐</div></div>${currentUser?.id===p.user_id?`<button class="menu" onclick="deletePost(${p.id})">⋯</button>`:''}</div>${bodyBlock}${p.media_url?`<img class="media" src="${p.media_url}" onclick="openPost(${p.id})">`:''}${yt?`<div class="yt"><iframe src="https://www.youtube.com/embed/${yt}" allowfullscreen></iframe></div>`:''}<div class="counts">${likes?`👍 ${likes}`:''} ${loves?`❤️ ${loves}`:''} ${prays?`🙏 ${prays}`:''} ${amens?`✝️ ${amens}`:''} <span>${cs.length} ${tr('comments')}</span></div><div class="actions"><button onclick="react(${p.id},'love')">❤️ ${tr('love')}</button><button onclick="react(${p.id},'pray')">🙏 ${type==='prayer'?tr('imPraying'):tr('pray')}</button><button onclick="react(${p.id},'amen')">✝️ ${tr('amen')}</button><button onclick="react(${p.id},'like')">👍 ${tr('like')}</button><button onclick="openPost(${p.id})">💬 ${tr('reply')}</button><button onclick="sharePost(${p.id})">↗ ${tr('share')}</button></div><div class="comments">${top.slice(0,3).map(c=>commentHTML(c,cs)).join('')}${cs.length>3?`<button class="smallBtn" onclick="openPost(${p.id})">${tr('viewAll')}</button>`:''}<div class="commentInput"><input id="comment-${p.id}" placeholder="${tr('addComment')}" onkeydown="if(event.key==='Enter'){event.preventDefault();addComment(${p.id})}"><button class="send" onclick="addComment(${p.id})">➜</button></div></div></article>`
